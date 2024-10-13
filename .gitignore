@@ -1,0 +1,6 @@
+# File found in folders from MacOS
+.DS_Store
+
+# Ignore PBS output and error streams
+*.e[0-9]*
+*.o[0-9]*
