@@ -15,7 +15,7 @@ For each exercise we write a script containing the PBS directives and the comman
 We compile files by loading the `mpich` module and launching the `mpicc` command:
 ```sh
 module load mpich-3.2
-mpicc -g -Wall -o file_name file_name.c
+mpicc -g -Wall -o -std=c99 -pedantic file_name file_name.c
 ```
 
 We submit the scripts to be ran on each chunk using the `qsub` command:
