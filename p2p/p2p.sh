@@ -7,4 +7,4 @@
 #PBS -q short_cpuQ
 
 module load mpich-3.2
-mpirun.actual -np 2 ~/hpc4ds/p2p/p2p
+mpirun.actual -np 2 ~/hpc4ds/p2p/p2p 100000000000000000000 10
