@@ -6,7 +6,7 @@
 
 #include <malloc.h>
 
-const long MIN_SIZE = 134217728;
+const long MIN_SIZE = 1;
 const long MAX_SIZE = 1073741824;
 const long CYCLES = 25;
 
@@ -42,11 +42,19 @@ int main() {
         times = (double *) malloc(sizeof(double) * CYCLES);
         bandwidths = (double *) malloc(sizeof(double) * CYCLES);
 
+        printf("n,");
+        for (int i = 0; i < CYCLES; i++) {
+            printf("time%i,", i);
+        }
+        printf("meantime,mediantime,");
+        for (int i = 0; i < CYCLES; i++) {
+            printf("bandwidth%i,", i);
+        }
+        printf("meanbandwidth,medianbandwidth\n");
+
         for (long array_size = MIN_SIZE; array_size <= MAX_SIZE; array_size *= 2) {
             
-            printf("--------------------------------\n\n");
-            printf("n: %ld\n\n", array_size);
-            printf("time (sec)  Rate (MB/sec)\n");
+            printf("%ld,", array_size);
 
             array = (double *) malloc(sizeof(double) * array_size);
 
@@ -69,16 +77,19 @@ int main() {
 
                 times[i] = time;
                 bandwidths[i] = bandwidth;
-
-                printf("%f    %f\n", time, bandwidth);
             }
 
-            printf("\n");
-            printf("Mean time: %lf sec\n", compute_mean(times, CYCLES));
-            printf("Median time: %lf sec\n", compute_median(times, CYCLES));
-            printf("\n");
-            printf("Mean bandwidth: %lf MB/sec\n", compute_mean(bandwidths, CYCLES));
-            printf("Median bandwidth: %lf MB/sec\n", compute_median(bandwidths, CYCLES));
+            
+            for (int i = 0; i < CYCLES; i++) {
+                printf("%lf,", times[i]);
+            }
+            printf("%lf,", compute_mean(times, CYCLES));
+            printf("%lf,", compute_median(times, CYCLES));
+            for (int i = 0; i < CYCLES; i++) {
+                printf("%lf,", bandwidths[i]);
+            }
+            printf("%lf,", compute_mean(bandwidths, CYCLES));
+            printf("%lf,", compute_median(bandwidths, CYCLES));
             printf("\n");
 
             free(array);

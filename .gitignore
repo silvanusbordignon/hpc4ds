@@ -4,3 +4,7 @@
 # Ignore PBS output and error streams
 *.e[0-9]*
 *.o[0-9]*
+
+# Ignore custom output and error files
+*.csv
+*.err
