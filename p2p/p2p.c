@@ -1,29 +1,17 @@
-/*
-    Write a program to measure the time it takes to send 1, 2, 4, ..., 1M, ...
-    bytes (arrays) from one processor to another using MPI_Send and MPI_Recv.
-
-    Basically:
-    - take the time
-    - send a message
-    - receive it back
-    - take the time
-    - compute the time delta
-    - compute the bandwidth
-        - from a double array to bytes
-        - divide by 2 considering you send AND receive
-        - compute bytes/second
-
-    Once this is done, run it using various PBS configurations, but you won't
-    need to edit this code during this phase.
-*/
-
 #include <mpi.h>
+
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <malloc.h>
 
-// Maximum buffer size for MPI_Send (INT_MAX)
-const long MAX_SIZE = 2147483647;
+const long MIN_SIZE = 134217728;
+const long MAX_SIZE = 1073741824;
+const long CYCLES = 25;
+
+double compute_mean(double *array, int size);
+double compute_median(double *array, int size);
 
 int main() {
 
@@ -35,7 +23,6 @@ int main() {
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
 
-    // We're benchmarking communications between two processes
     if (comm_sz != 2) {
 
         if (my_rank == 0) {
@@ -46,51 +33,72 @@ int main() {
         return 1;
     }
 
-    // This process measures the time, sends and receives data
+    double *array;
+
     if (my_rank == 0) {
-        
-        // Counting the digits of the max size for formatting purposes
 
-        int digits = 1;
-        long temp = MAX_SIZE;
+        double *times, *bandwidths;
 
-        while (temp / 10 > 0) {
-            temp = (long) temp / 10;
-            digits += 1;
-        }
+        times = (double *) malloc(sizeof(double) * CYCLES);
+        bandwidths = (double *) malloc(sizeof(double) * CYCLES);
 
-        printf("%-*s %-*s\n", digits, "n", digits, "time (sec)");
+        for (long array_size = MIN_SIZE; array_size <= MAX_SIZE; array_size *= 2) {
+            
+            printf("--------------------------------\n\n");
+            printf("n: %ld\n\n", array_size);
+            printf("time (sec)  Rate (MB/sec)\n");
 
-        double t0, t1;
+            array = (double *) malloc(sizeof(double) * array_size);
 
-        for (long array_size = 1; array_size <= MAX_SIZE; array_size *= 2) {
+            double t0, t1;
+            double time, bandwidth;
 
-            double* array = (double*) malloc(sizeof(double) * array_size);
+            for (int i = 0; i < CYCLES; i++) {
+                
+                MPI_Barrier(MPI_COMM_WORLD);
 
-            t0 = MPI_Wtime();
+                t0 = MPI_Wtime();
 
-            MPI_Send(array, array_size, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
-            MPI_Recv(array, array_size, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Send(array, array_size, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+                MPI_Recv(array, array_size, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                
+                t1 = MPI_Wtime();
 
-            t1 = MPI_Wtime();
+                time = t1 - t0;
+                bandwidth = (((array_size * 8) / 1000000) / ((t1 - t0) / 2));
+
+                times[i] = time;
+                bandwidths[i] = bandwidth;
+
+                printf("%f    %f\n", time, bandwidth);
+            }
+
+            printf("\n");
+            printf("Mean time: %lf sec\n", compute_mean(times, CYCLES));
+            printf("Median time: %lf sec\n", compute_median(times, CYCLES));
+            printf("\n");
+            printf("Mean bandwidth: %lf MB/sec\n", compute_mean(bandwidths, CYCLES));
+            printf("Median bandwidth: %lf MB/sec\n", compute_median(bandwidths, CYCLES));
+            printf("\n");
 
             free(array);
-
-            // Computing the MB/s bandwidth
-            double bandwidth = (((array_size * 8) / 1000000) / ((t1 - t0) / 2));
-
-            printf("%-*ld %-*f %-*f\n", digits, array_size, digits, t1 - t0, digits, bandwidth);
         }
+
+        free(times);
+        free(bandwidths);
     }
-    // This process receives and sends back data
     else if (my_rank == 1) {
+        for (long array_size = MIN_SIZE; array_size <= MAX_SIZE; array_size *= 2) {
+            
+            array = (double *) malloc(sizeof(double) * array_size);
 
-        for (long array_size = 1; array_size <= MAX_SIZE; array_size *= 2) {
+            for (int i = 0; i < CYCLES; i++) {
+                
+                MPI_Barrier(MPI_COMM_WORLD);
 
-            double* array = (double*) malloc(sizeof(double) * array_size);
-
-            MPI_Recv(array, array_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Send(array, array_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+                MPI_Recv(array, array_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Send(array, array_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+            }
 
             free(array);
         }
@@ -99,4 +107,41 @@ int main() {
     MPI_Finalize();
 
     return 0;
+}
+
+
+double compute_mean(double *array, int size)
+{
+    double sum = 0;
+
+    for (int i = 0; i < size; i++) {
+        sum += array[i];
+    }
+
+    return (sum != 0) ? (sum / size) : 0;
+}
+double compute_median(double *array, int size)
+{
+    double temp;
+    int min;
+
+    for (int i = 0; i < size - 1; i++) {
+
+        min = i;
+
+        for (int j = 1; j < size; j++) {
+            if (array[j] < array[min]) {
+                temp = array[j];
+                array[j] = array[min];
+                array[min] = temp;
+            }
+        }
+    }
+
+    if (size % 2 == 0) {
+        return (array[size / 2 - 1] + array[size / 2]) / 2;
+    }
+    else {
+        return array[size / 2];
+    }
 }
