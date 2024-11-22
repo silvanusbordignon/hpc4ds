@@ -3,4 +3,4 @@
 #PBS -q short_cpuQ
 
 module load mpich-3.2
-mpirun.actual -np 8 ~/hpc4ds/beginner/all-reduce/all-reduce
+mpirun.actual -np 8 ~/hpc4ds/beginner/allreduce/allreduce
