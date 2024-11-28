@@ -33,6 +33,11 @@ int MyMPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype 
     int height, group_sz, group_leader_rank, old_group_sz, old_group_leader_rank, source, target;
     int local_sum = *((int *) sendbuf);
 
+    /*
+        APPROACH (idea by ChatGPT): have some processes first receive then send, based on their
+        position w.r.t. the group
+    */
+
     for (height = 0; height <= log2(comm_sz); height++) {
         
         old_group_sz = (int) pow(2, height);
