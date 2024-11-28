@@ -6,6 +6,7 @@
     Caveats:
     - only works with a number of processors equal to a power of 2
     - only works with the sum operation
+    - temporarily returns 0
 */
 
 #include <mpi.h>
@@ -29,30 +30,48 @@ int MyMPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype 
 
     // Actual implementation
 
-    int height, group_sz, group_leader_rank, source, target;
+    int height, group_sz, group_leader_rank, old_group_sz, old_group_leader_rank, source, target;
     int local_sum = *((int *) sendbuf);
 
-    for (height = 0; height < log2(comm_sz); height++) {
+    for (height = 0; height <= log2(comm_sz); height++) {
         
+        old_group_sz = (int) pow(2, height);
+        old_group_leader_rank = my_rank - my_rank % old_group_sz;
+        source = old_group_leader_rank + ((my_rank + (int) pow(2, height - 1)) % old_group_sz);
+
         group_sz = (int) pow(2, height + 1);
         group_leader_rank = my_rank - my_rank % group_sz;
-
-        source = // ???
         target = group_leader_rank + ((my_rank + (int) pow(2, height)) % group_sz);
+
+        // printf("[%d] Height: %d, source: %d, target: %d\n", my_rank, height, source, target);
 
         // First iteration: only send
         if (height == 0) {
+
+            // printf("[%d][h=%d] sending to %d\n", my_rank, height, target);
             MPI_Send(&local_sum, 1, MPI_INT, target, 0, MPI_COMM_WORLD);
         }
         // Last iteration: only receive
-        else if (height = log2(comm_sz) - 1) {
-            // eh... MPI_Recv(&recvbuf, 1, MPI_INT, )
+        else if (height == log2(comm_sz)) {
+            
+            // printf("[%d][h=%d] receiving from %d\n", my_rank, height, source);
+            MPI_Recv(&recvbuf, 1, MPI_INT, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            *(int*) recvbuf = *(int*) recvbuf + local_sum;
         }
         // Intermediate iterations: receive and send
         else {
 
+            // printf("[%d][h=%d] receiving from %d\n", my_rank, height, source);
+            MPI_Recv(&recvbuf, 1, MPI_INT, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            local_sum = local_sum + *(int *) recvbuf;
+
+            // printf("[%d][h=%d] sending to %d\n", my_rank, height, target);
+            MPI_Send(&local_sum, 1, MPI_INT, target, 0, MPI_COMM_WORLD);
         }
     }
+
+    // Temporary return value
+    return 0;
 }
 
 int main() {
@@ -72,7 +91,8 @@ int main() {
     int value, sum;
 
     srand(time(NULL) * my_rank);
-    value = rand() % 100;
+    value = (int) rand() % 100;
+    sum = -1;
 
     printf("[%d] value: %d\n", my_rank, value);
 
