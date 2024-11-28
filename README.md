@@ -12,10 +12,10 @@ For each exercise we write a script containing the PBS directives and the comman
 
 ## Commands
 
-We compile files by loading the `mpich` module and launching the `mpicc` command:
+We compile files by loading the `mpich` module and launching the `mpicc` command (the `-lm` links the cmath library):
 ```sh
 module load mpich-3.2
-mpicc -g -Wall -o -std=c99 -pedantic file_name file_name.c
+mpicc -g -Wall -o -std=c99 -pedantic file_name file_name.c [-lm]
 ```
 
 We submit the scripts to be ran on each chunk using the `qsub` command:
