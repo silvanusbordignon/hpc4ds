@@ -28,18 +28,29 @@ int MyMPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype 
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
 
-    // Actual implementation
+    // For the actual implementation:
 
-    int height, group_sz, group_leader_rank, old_group_sz, old_group_leader_rank, source, target;
-    int local_sum = *((int *) sendbuf);
+    // Iterators
+    int height, iter;
+
+    // Compute source and target nodes
+    int group_sz, group_leader_rank, old_group_sz, old_group_leader_rank, source, target, my_half;
 
     /*
-        APPROACH (idea by ChatGPT): have some processes first receive then send, based on their
-        position w.r.t. the group
-    */
-
-    for (height = 0; height <= log2(comm_sz); height++) {
+        Assuming multiples of 2, I will have log2(comm_sz) iterations
         
+        Each one involves:
+        - half the processes in each group sending
+        - the rest receiving
+        - the second half sends their own value
+        - the first half receives those
+
+        This is captured by an innner loop.
+    */
+    for (height = 0; height < log2(comm_sz); height++) {
+    
+        // Rudimental computations for source and target nodes
+
         old_group_sz = (int) pow(2, height);
         old_group_leader_rank = my_rank - my_rank % old_group_sz;
         source = old_group_leader_rank + ((my_rank + (int) pow(2, height - 1)) % old_group_sz);
@@ -48,31 +59,24 @@ int MyMPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype 
         group_leader_rank = my_rank - my_rank % group_sz;
         target = group_leader_rank + ((my_rank + (int) pow(2, height)) % group_sz);
 
-        // printf("[%d] Height: %d, source: %d, target: %d\n", my_rank, height, source, target);
+        my_half = ((my_rank - group_leader_rank) < (group_sz / 2)) ? 0 : 1;
 
-        // First iteration: only send
-        if (height == 0) {
+        // The "iter" half is the one sending data
+        for (iter = 0; iter < 2; iter++) {
 
-            // printf("[%d][h=%d] sending to %d\n", my_rank, height, target);
-            MPI_Send(&local_sum, 1, MPI_INT, target, 0, MPI_COMM_WORLD);
+            // If it is my turn, send a value
+            if (my_half == iter) {
+                MPI_Send(sendbuf, 1, MPI_INT, target, 0, MPI_COMM_WORLD);
+            }
+
+            // Otherwise, receive
+            else {        
+                MPI_Recv(recvbuf, 1, MPI_INT, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);                
+                *(int*) recvbuf = *(int*) recvbuf + *(int*) sendbuf;
+            }
         }
-        // Last iteration: only receive
-        else if (height == log2(comm_sz)) {
-            
-            // printf("[%d][h=%d] receiving from %d\n", my_rank, height, source);
-            MPI_Recv(&recvbuf, 1, MPI_INT, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            *(int*) recvbuf = *(int*) recvbuf + local_sum;
-        }
-        // Intermediate iterations: receive and send
-        else {
 
-            // printf("[%d][h=%d] receiving from %d\n", my_rank, height, source);
-            MPI_Recv(&recvbuf, 1, MPI_INT, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            local_sum = local_sum + *(int *) recvbuf;
-
-            // printf("[%d][h=%d] sending to %d\n", my_rank, height, target);
-            MPI_Send(&local_sum, 1, MPI_INT, target, 0, MPI_COMM_WORLD);
-        }
+        *(int*) sendbuf = *(int*) recvbuf;
     }
 
     // Temporary return value
