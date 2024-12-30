@@ -73,18 +73,6 @@ void parallel_vector_sum(double local_x[], double local_y[], double local_z[], i
 
 int main(int argc, char **argv) {
 
-    // Rudimental input sanitization
-
-    if (argc != 2) {
-        printf("usage: %s [how many numbers per process]\n", argv[0]);
-        return 0;
-    }
-
-    if (strtol(argv[1], NULL, 10) < 1) {
-        printf("command line argument must be positive\n");
-        return 0;
-    }
-
     // MPI initialization and communicator instructions
 
     int comm_sz;
@@ -93,6 +81,26 @@ int main(int argc, char **argv) {
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+    // Rudimental input sanitization
+
+    if (my_rank == 0) {
+
+        if (argc != 2) {
+            printf("usage: %s [how many numbers per process]\n", argv[0]);
+            
+            MPI_Finalize();
+            return 0;
+        }
+
+        if (strtol(argv[1], NULL, 10) < 1) {
+            printf("command line argument must be positive\n");
+            
+            MPI_Finalize();
+            return 0;
+        }
+    }
+
 
     // Declaring my variables
     
@@ -113,5 +121,7 @@ int main(int argc, char **argv) {
     // With this final call we bring back the full, summed array and print it
     print_vector(local_z, local_n, n, my_rank, MPI_COMM_WORLD);
 
+
+    MPI_Finalize();
     return 0;
 }
