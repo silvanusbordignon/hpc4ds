@@ -1,4 +1,5 @@
 #include <omp.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -21,11 +22,20 @@ int main(int argc, char **argv) {
     printf("Enter a, b, and n\n");
     scanf("%lf %lf %d", &a, &b, &n);
 
+    // Starting a timer
+    clock_t begin = clock();
+
     #pragma omp parallel num_threads(thread_count)
     trap(a, b, n, &global_result);
 
+    // Ending a timer and computing how much time has passed
+    clock_t end = clock();
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+
     printf("With n = %d trapezoids, our estimate\n", n);
     printf("of the integral from %f to %f = %.14e\n", a, b, global_result);
+
+    printf("\nThe computation took %lf seconds", time_spent);
 
     return 0;
 }
