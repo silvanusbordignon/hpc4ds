@@ -8,3 +8,6 @@
 # Ignore custom output and error files
 *.csv
 *.err
+
+# Ignore other output text files+
+*.txt
