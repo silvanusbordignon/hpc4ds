@@ -6,4 +6,4 @@
 
 #PBS -o threads_64_real
 
-echo "-10000000000 10000000000 10000000000" | ~/hpc4ds/openmp/beginner/intuitive_trapezoid/intuitive_trapezoid 64
+echo "-10000000000 10000000000 10000000000" | ~/hpc4ds/openmp/beginner/critical_trapezoid/critical_trapezoid 64
