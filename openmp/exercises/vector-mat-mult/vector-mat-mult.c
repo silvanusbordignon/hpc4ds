@@ -13,6 +13,7 @@ void print_double_vect(double *x, long long start, long long len);
 void serial_mat_vect_mult(double *a, double *x, double *y, long long m, long long n);
 void parallel_1_mat_vect_mult(double *a, double *x, double *y, long long m, long long n, int thread_count);
 void parallel_2_mat_vect_mult(double *a, double *x, double *y, long long m, long long n, int thread_count);
+void parallel_3_mat_vect_mult(double *a, double *x, double *y, long long m, long long n, int thread_count);
 
 int main(int argc, char **argv) {
     
@@ -78,6 +79,16 @@ int main(int argc, char **argv) {
 
     printf("[%d threads] Second parallel version: %lf\n", thread_count, (double)(end - begin));
     printf("[%d threads] Result checks out? %s\n\n", thread_count,(compare_arrays(y, z, m) == 0) ? "yes" : "no");
+
+    // Time third parallel version
+
+    begin = omp_get_wtime();
+    parallel_3_mat_vect_mult(a, x, z, m, n, thread_count);
+    end = omp_get_wtime();
+
+    printf("[%d threads] Third parallel version: %lf\n", thread_count, (double)(end - begin));
+    printf("[%d threads] Result checks out? %s\n\n", thread_count,(compare_arrays(y, z, m) == 0) ? "yes" : "no");
+
 
     // Free allocated resources
     free(a);
@@ -152,6 +163,7 @@ void parallel_1_mat_vect_mult(double *a, double *x, double *y, long long m, long
     }
 }
 
+// problem: sums are being done without any race condition check
 void parallel_2_mat_vect_mult(double *a, double *x, double *y, long long m, long long n, int thread_count) {
     
     # pragma omp parallel for num_threads(thread_count)
@@ -161,6 +173,21 @@ void parallel_2_mat_vect_mult(double *a, double *x, double *y, long long m, long
 
     # pragma omp parallel for num_threads(thread_count) collapse(2)
     for (long long i = 0; i < m; i++) {
+        for (long long j = 0; j < n; j++) {
+            y[i] += a[i * n + j] * x[j];
+        }
+    }
+}
+
+void parallel_3_mat_vect_mult(double *a, double *x, double *y, long long m, long long n, int thread_count) {
+    
+    # pragma omp parallel for num_threads(thread_count)
+    for (long long i = 0; i < m; i++) {
+        y[i] = 0;
+    }
+
+    for (long long i = 0; i < m; i++) {
+        # pragma omp parallel for num_threads(thread_count) reduction(+: y[i])
         for (long long j = 0; j < n; j++) {
             y[i] += a[i * n + j] * x[j];
         }

@@ -5,4 +5,4 @@
 #PBS -q short_cpuQ
 
 #PBS -o iter_1000000000000_threads_2048
-~/hpc4ds/openmp/beginner/estimating_pi/estimating_pi 1000000000000 2048
+~/hpc4ds/openmp/exercises/estimating_pi/estimating_pi 1000000000000 2048
